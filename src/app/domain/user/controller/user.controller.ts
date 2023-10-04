@@ -7,7 +7,7 @@ import { Response } from 'express';
 export class UserController {
   constructor(private readonly userService: UserService) {}
   @Get()
-  async root(@Body() req: SingUpRequest, @Res() res: Response) {
+  async create_user(@Body() req: SingUpRequest, @Res() res: Response) {
     return res
       .status(201)
       .json(await this.userService.signUp(req))
