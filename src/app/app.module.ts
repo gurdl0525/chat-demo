@@ -1,8 +1,10 @@
-import { typeORMConfig } from './config/typeorm.config';
+import { typeORMConfig } from '../global/config/typeorm.config';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserModule } from './domain/user/module/user.module';
+import { AuthModule } from '../domain/auth/module/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { UserModule } from '../domain/user/module/user.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -10,6 +12,7 @@ import { ConfigModule } from '@nestjs/config';
       cache: true,
     }),
     TypeOrmModule.forRoot(typeORMConfig),
+    AuthModule,
     UserModule,
   ],
 })
