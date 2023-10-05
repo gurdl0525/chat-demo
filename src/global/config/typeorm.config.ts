@@ -10,4 +10,12 @@ export const typeORMConfig: TypeOrmModuleOptions = {
   database: process.env.DB,
   entities: ['dist/**/*.entity{.ts,.js}'],
   synchronize: true,
+
+  cache: {
+    type: 'redis',
+    options: {
+      host: process.env.REDIS_HOST,
+      port: parseInt(process.env.REDIS_PORT),
+    },
+  },
 };

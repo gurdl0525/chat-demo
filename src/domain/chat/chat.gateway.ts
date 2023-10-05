@@ -17,7 +17,7 @@ import { setInitDTO } from './controller/dto/chat.dto';
 export class ChatBackEndGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
-  constructor(private readonly ChatRoomService: ChatRoomService) {}
+  constructor(private readonly chatRoomService: ChatRoomService) {}
   @WebSocketServer()
   server: Server;
 
@@ -30,16 +30,16 @@ export class ChatBackEndGateway
   }
 
   //소켓 연결 해제시 유저목록에서 제거
-  public handleDisconnect(client: Socket): void {
+  public async handleDisconnect(client: Socket): Promise<void> {
     const { roomId } = client.data;
     if (
       roomId != 'room:lobby' &&
       !this.server.sockets.adapter.rooms.get(roomId)
     ) {
-      this.ChatRoomService.deleteChatRoom(roomId);
+      await this.chatRoomService.deleteChatRoom(roomId);
       this.server.emit(
         'getChatRoomList',
-        this.ChatRoomService.getChatRoomList(),
+        this.chatRoomService.getChatRoomList(),
       );
     }
     console.log('disonnected', client.id);
@@ -95,30 +95,31 @@ export class ChatBackEndGateway
   //채팅방 목록 가져오기
   @SubscribeMessage('getChatRoomList')
   getChatRoomList(client: Socket, payload: any) {
-    client.emit('getChatRoomList', this.ChatRoomService.getChatRoomList());
+    client.emit('getChatRoomList', this.chatRoomService.getChatRoomList());
   }
 
   //채팅방 생성하기
   @SubscribeMessage('createChatRoom')
-  createChatRoom(client: Socket, roomName: string) {
+  async createChatRoom(client: Socket, roomName: string) {
     //이전 방이 만약 나 혼자있던 방이면 제거
     if (
       client.data.roomId != 'room:lobby' &&
       this.server.sockets.adapter.rooms.get(client.data.roomId).size == 1
     ) {
-      this.ChatRoomService.deleteChatRoom(client.data.roomId);
+      await this.chatRoomService.deleteChatRoom(client.data.roomId);
     }
 
-    this.ChatRoomService.createChatRoom(client, roomName);
+    await this.chatRoomService.createChatRoom(client, roomName);
     return {
       roomId: client.data.roomId,
-      roomName: this.ChatRoomService.getChatRoom(client.data.roomId).roomName,
+      roomName: (await this.chatRoomService.getChatRoom(client.data.roomId))
+        .name,
     };
   }
 
   //채팅방 들어가기
   @SubscribeMessage('enterChatRoom')
-  enterChatRoom(client: Socket, roomId: string) {
+  async enterChatRoom(client: Socket, roomId: string) {
     //이미 접속해있는 방 일 경우 재접속 차단
     if (client.rooms.has(roomId)) {
       return;
@@ -128,12 +129,12 @@ export class ChatBackEndGateway
       client.data.roomId != 'room:lobby' &&
       this.server.sockets.adapter.rooms.get(client.data.roomId).size == 1
     ) {
-      this.ChatRoomService.deleteChatRoom(client.data.roomId);
+      this.chatRoomService.deleteChatRoom(client.data.roomId);
     }
-    this.ChatRoomService.enterChatRoom(client, roomId);
+    await this.chatRoomService.enterChatRoom(client, roomId);
     return {
       roomId: roomId,
-      roomName: this.ChatRoomService.getChatRoom(roomId).roomName,
+      roomName: (await this.chatRoomService.getChatRoom(roomId)).name,
     };
   }
 }
