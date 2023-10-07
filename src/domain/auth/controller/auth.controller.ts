@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from "@nestjs/common";
-import { LogInRequest, SingUpRequest } from './dto/auth.dto';
+import { Body, Controller, Get, Patch, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { LogInRequest, ReIssueRequest, SingUpRequest } from './dto/auth.dto';
 import { AuthService } from '../service/auth.service';
 import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../jwt/jwt.guard';
@@ -21,6 +21,14 @@ export class AuthController {
     return res
       .status(201)
       .json(await this.authService.login(req))
+      .send();
+  }
+
+  @Patch('/re-issue')
+  async reissue(@Body() req: ReIssueRequest, @Res() res: Response) {
+    return res
+      .status(201)
+      .json(await this.authService.reissue(req.refresh_token))
       .send();
   }
 
