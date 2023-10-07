@@ -1,13 +1,16 @@
 import { NestFactory } from '@nestjs/core';
-import { SocketIoAdapter } from './global/adapter/socket.adapter';
-import { NestExpressApplication } from '@nestjs/platform-express';
-import { AppModule } from './app/app.module';
+import { AppModule } from './app.module';
 import * as process from 'process';
 import { ValidationPipe } from '@nestjs/common';
+import { config } from 'dotenv';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import { webSocket } from 'rxjs/webSocket';
+
+config();
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useWebSocketAdapter(new SocketIoAdapter(app));
+  const app = await NestFactory.create(AppModule);
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -15,8 +18,8 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
-  const port = parseInt(process.env.PORT);
+  app.useWebSocketAdapter(new IoAdapter(app));
+  const port = Number(process.env.PORT);
   await app.listen(port);
   console.log(`Application is running on :${port}`);
 }

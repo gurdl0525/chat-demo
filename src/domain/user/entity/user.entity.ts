@@ -1,6 +1,7 @@
 import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 import { v4 as uuid } from 'uuid';
 import { Joiner } from '../../chat/entity/chat.entity';
+import { initializeInstance } from "ts-loader/dist/instances";
 
 const oneToMany = OneToMany;
 
