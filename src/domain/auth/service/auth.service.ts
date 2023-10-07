@@ -3,6 +3,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   LogInRequest,
@@ -16,17 +17,14 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import * as process from 'process';
 import { Redis } from 'ioredis';
-
-const redis: Redis = new Redis({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT),
-});
+import { InjectRedis } from '@liaoliaots/nestjs-redis';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    @InjectRedis() private readonly redis: Redis,
   ) {}
 
   signUp = async (req: SingUpRequest) => {
@@ -65,6 +63,13 @@ export class AuthService {
         status: HttpStatus.BAD_REQUEST,
       });
     }
+
+    const redisEntity = await this.getRedisEntity(user.account_id);
+    if (redisEntity) {
+      this.redis.del(redisEntity);
+      this.redis.del(user.account_id);
+    }
+
     return this.generateTokens(user.account_id);
   };
 
@@ -75,31 +80,23 @@ export class AuthService {
   private async generateTokens(sub: string) {
     return new TokenResponse(
       await this.generateAccessToken(sub),
-      await this.generateRefreshToken(),
+      await this.generateRefreshToken(sub),
     );
   }
 
   private async generateAccessToken(sub: string) {
-    if (!(await this.getRefreshToken(sub))) {
-      redis.del(sub);
-    }
-
-    const token = await this.jwtService.signAsync(
+    return await this.jwtService.signAsync(
       { sub: sub },
       {
         secret: process.env.SECRET_KEY,
         algorithm: 'HS256',
-        expiresIn: '2d',
+        expiresIn: '2h',
       },
     );
-
-    await this.saveRefreshToken(sub, token);
-
-    return token;
   }
 
-  private async generateRefreshToken() {
-    return await this.jwtService.signAsync(
+  private async generateRefreshToken(sub: string) {
+    const token = await this.jwtService.signAsync(
       {},
       {
         secret: process.env.SECRET_KEY,
@@ -107,6 +104,11 @@ export class AuthService {
         expiresIn: '7d',
       },
     );
+
+    await this.saveRedisEntity(sub, token);
+    await this.saveRedisEntity(token, sub);
+
+    return token;
   }
 
   compareTokenExpiration(exp: number) {
@@ -124,10 +126,22 @@ export class AuthService {
     return user;
   }
 
-  private async saveRefreshToken(accountId: string, refreshToken: string) {
-    await redis.set(accountId, refreshToken, 'EX', 604800);
+  private async saveRedisEntity(key: string, value: string) {
+    await this.redis.set(key, value, 'EX', 604800);
   }
-  private async getRefreshToken(accountId: string): Promise<string | null> {
-    return redis.get(accountId);
+  private async getRedisEntity(key: string): Promise<string | null> {
+    return this.redis.get(key);
+  }
+
+  async reissue(refresh_token: string): Promise<TokenResponse> {
+    const redisEntity = await this.getRedisEntity(refresh_token);
+
+    if (!redisEntity) {
+      throw new UnauthorizedException('유효하지 않은 refresh 토큰');
+    }
+
+    this.redis.del(refresh_token);
+    this.redis.del(redisEntity);
+    return await this.generateTokens(redisEntity);
   }
 }
