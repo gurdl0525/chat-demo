@@ -51,7 +51,7 @@ export class Joiner {
     type: 'binary',
     length: 36,
   })
-  room_id!: Room;
+  room_id!: string;
 
   @ManyToOne(() => User, (user) => user.id)
   @JoinColumn({ name: 'user_id' })
@@ -59,15 +59,15 @@ export class Joiner {
     type: 'binary',
     length: 36,
   })
-  user_id!: User;
+  user_id!: string;
 
   @OneToMany(() => Chat, (chat) => chat.joiner)
   chat_list: Chat[];
 
   constructor(room?: Room, user?: User, chat_list?: Chat[]) {
     if (room && user) {
-      this.room_id = room;
-      this.user_id = user;
+      this.room_id = room.id;
+      this.user_id = user.id;
       this.chat_list = chat_list ?? [];
     }
   }
@@ -96,4 +96,12 @@ export class Chat {
 
   @Column({ name: 'text', nullable: false, length: 1000 })
   text: string;
+
+  constructor(text?: string, joiner?: Joiner, id?: string) {
+    if (text && joiner) {
+      this.text = text;
+      this.joiner = joiner;
+      this.id = id ?? uuid();
+    }
+  }
 }
