@@ -5,23 +5,25 @@ import {
   OnGatewayDisconnect,
   OnGatewayInit,
   ConnectedSocket,
-  SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { ChatService } from '../service/chat.service';
-import { JwtService } from '@nestjs/jwt';
-import process from 'process';
+import { UserFacade } from '../../../facade/user.facade';
+import { User } from '../../user/entity/user.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Joiner } from '../entity/chat.entity';
+import { Repository } from 'typeorm/repository/Repository';
 
 @WebSocketGateway(8080, {
   transports: ['websocket'],
   cors: { origin: ['*'] },
 })
-export class ChatBackEndGateway
+export class ChatGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   constructor(
-    private readonly chatService: ChatService,
-    private jwtService: JwtService,
+    @InjectRepository(Joiner)
+    private readonly joinerRepository: Repository<Joiner>,
+    private readonly userFacade: UserFacade,
   ) {}
   @WebSocketServer()
   public server: Server;
@@ -33,25 +35,15 @@ export class ChatBackEndGateway
   public async handleConnection(@ConnectedSocket() client: Socket) {
     console.log(`connected ${client.id}`);
 
-    try {
-      const sub = (
-        await this.jwtService.verifyAsync(
-          client.handshake.query['authorization'].toString(),
-          { secret: process.env.SECRET_KEY },
-        )
-      ).sub;
+    const token: string = client.handshake.query['authorization'].toString();
 
-      try {
-        const roomId = client.handshake.query['room'].toString();
+    const user: User = await this.userFacade.verifyUser(token);
 
-        await this.chatService.enterRoom(roomId, sub, client);
-      } catch (e) {
-        client.disconnect();
-        console.error(`${client.id}의 요청이 올바르지 않습니다.`);
-      }
-    } catch (e) {
-      client.disconnect();
-      console.error(`${client.id}의 토큰이 올바르지 않습니다.`);
+    const joiners = await this.joinerRepository.findBy({ user_id: user.id });
+
+    for (const { room_id } of joiners) {
+      client.join(room_id);
+      console.log(`join to ${room_id}`);
     }
   }
 
