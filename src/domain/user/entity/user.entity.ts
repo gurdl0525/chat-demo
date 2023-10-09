@@ -17,27 +17,19 @@ export class User {
     type: 'binary',
     length: 36,
   })
-  id: string;
+  id!: string;
 
   @Column({ name: 'account_id', type: 'varchar', unique: true })
-  account_id: string;
+  account_id!: string;
 
   @Column({ name: 'password', type: 'char', length: 60 })
-  password: string;
+  password!: string;
 
-  @oneToMany(() => Joiner, (joiner) => joiner.user_id)
-  joiner_list: Joiner[];
-  constructor(
-    account_ld?: string,
-    password?: string,
-    joiner_list?: Joiner[],
-    id?: string,
-  ) {
+  constructor(account_ld?: string, password?: string, id?: string) {
     if (account_ld && password) {
       this.id = id ?? uuid();
       this.account_id = account_ld!;
       this.password = password!;
-      this.joiner_list = joiner_list ?? [];
     }
   }
   async toResponse() {
