@@ -35,7 +35,9 @@ export class ChatController {
     @Body() request: SendChatRequest,
     @Res() res: Response,
   ) {
-    await this.chatService.sendChat(request, token);
-    return res.status(201).send();
+    return res
+      .status(201)
+      .json(await this.chatService.sendChat(request, token))
+      .send();
   }
 }
