@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -74,27 +75,37 @@ export class ChatService {
       new Chat(request.text, joiner),
     );
 
-    return this.chatGateway.server.to(room.id).emit('message', {
-      who: user.toResponse(),
+    return this.chatGateway.server.to(`${room.id}`).emit('message', {
       message: message.text,
-      when: Date(),
+      posted_at: Date(),
+      writer: `${user.id}`,
     });
   }
 
-  joinRoom = async (roomId: string, token: string) => {
+  addUserInRoom = async (roomId: string, token: string, id: string) => {
+    if (!roomId) throw new NotFoundException('채팅방을 찾을 수 없습니다.');
+
     const user = await this.userFacade.verifyUser(token);
 
-    const room = await this.roomRepository.findOneBy({ id: roomId });
+    const room = await this.roomRepository.findOneByOrFail({ id: roomId });
 
-    if (!room) throw new NotFoundException('채팅방을 찾을 수 없습니다.');
+    if (
+      !(await this.joinerRepository.exist({
+        where: { room_id: room.id, user_id: user.id },
+      }))
+    )
+      throw new ForbiddenException('권한이 없습니다.');
 
     if (
       await this.joinerRepository.exist({
-        where: { room_id: room.id, user_id: user.id },
+        where: { room_id: room.id, user_id: id },
       })
     )
       throw new ConflictException('이미 채팅방에 들어가 있습니다.');
 
-    await this.joinerRepository.save(new Joiner(room, user));
+    const newUser = await this.userRepository.findOneBy({ id: id });
+    if (!newUser) throw new NotFoundException('잘못된 유저 입니다.');
+
+    await this.joinerRepository.save(new Joiner(room, newUser));
   };
 }
