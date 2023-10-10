@@ -35,14 +35,22 @@ export class ChatGateway
   public async handleConnection(@ConnectedSocket() client: Socket) {
     console.log(`connected ${client.id}`);
 
-    const token: string = client.handshake.query['authorization'].toString();
+    let token: string;
+    let user: User;
 
-    const user: User = await this.userFacade.verifyUser(token);
+    try {
+      token = client.handshake.query['authorization'].toString();
+      user = await this.userFacade.verifyUser(token);
+    } catch (e) {
+      client.disconnect();
+      console.error('UnAuthorized');
+      return;
+    }
 
     const joiners = await this.joinerRepository.findBy({ user_id: user.id });
 
     for (const { room_id } of joiners) {
-      client.join(room_id);
+      client.join(`${room_id}`);
       console.log(`join to ${room_id}`);
     }
   }
