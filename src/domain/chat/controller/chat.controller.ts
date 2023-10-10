@@ -5,14 +5,19 @@ import {
   Headers,
   Res,
   UseGuards,
+  Query,
 } from '@nestjs/common/decorators';
-import { Request, Response } from 'express';
-import { CreateChatRoomRequest, SendChatRequest } from './dto/chat.dto';
+import { Response } from 'express';
+import {
+  AddUsrInRoomRequest,
+  CreateChatRoomRequest,
+  SendChatRequest,
+} from './dto/chat.dto';
 import { ChatService } from '../service/chat.service';
 import { JwtAuthGuard } from '../../auth/jwt/jwt.guard';
-import { User } from '../../user/entity/user.entity';
+import { Patch } from '@nestjs/common';
 
-@Controller('/chat')
+@Controller()
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
@@ -29,7 +34,7 @@ export class ChatController {
       .send();
   }
 
-  @Post()
+  @Post('/chat')
   async sendChat(
     @Headers('Authorization') token: string,
     @Body() request: SendChatRequest,
@@ -39,5 +44,16 @@ export class ChatController {
       .status(201)
       .json(await this.chatService.sendChat(request, token))
       .send();
+  }
+
+  @Patch('/room/add')
+  async addUser(
+    @Headers('Authorization') token: string,
+    @Body() req: AddUsrInRoomRequest,
+    @Query('room_id') room_id: string,
+    @Res() res: Response,
+  ) {
+    await this.chatService.addUserInRoom(room_id, token, req.user_id);
+    return res.status(200).send();
   }
 }
