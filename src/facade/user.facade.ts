@@ -12,9 +12,9 @@ export class UserFacade {
   ) {}
 
   verifyUser = async (token: string) => {
-    if (token.startsWith('Bearer ')) token = token.substring(7);
-
     try {
+      if (token.startsWith('Bearer ')) token = token.substring(7);
+
       const sub: string = (
         await this.jwtService.verifyAsync(token, {
           secret: process.env.SECRET_KEY,
