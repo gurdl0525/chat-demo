@@ -14,3 +14,8 @@ export class SendChatRequest {
   @IsString()
   text: string;
 }
+
+export class AddUsrInRoomRequest {
+  @IsString()
+  user_id: string;
+}
